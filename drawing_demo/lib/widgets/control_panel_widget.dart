@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ControlPanelWidget extends StatelessWidget {
-  const ControlPanelWidget({Key? key}) : super(key: key);
+  const ControlPanelWidget({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -5,14 +5,14 @@ import '../models/dollar_q.dart';
 class CanvasWidget extends StatefulWidget {
   final Function(String) onRecognitionComplete;
 
-  const CanvasWidget({Key? key, required this.onRecognitionComplete}) : super(key: key);
+  const CanvasWidget({super.key, required this.onRecognitionComplete});
 
   @override
   _CanvasWidgetState createState() => _CanvasWidgetState();
 }
 
 class _CanvasWidgetState extends State<CanvasWidget> {
-  List<List<Offset>> _strokes = [];
+  final List<List<Offset>> _strokes = [];
   List<Offset> _currentStroke = [];
   late DollarQ _dollarQ;
 

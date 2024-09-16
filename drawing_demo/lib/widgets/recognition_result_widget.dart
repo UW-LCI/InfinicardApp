@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class RecognitionResultWidget extends StatelessWidget {
   final String result;
 
-  const RecognitionResultWidget({Key? key, required this.result}) : super(key: key);
+  const RecognitionResultWidget({super.key, required this.result});
 
   @override
   Widget build(BuildContext context) {

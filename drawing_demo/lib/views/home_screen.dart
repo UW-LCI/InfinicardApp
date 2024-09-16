@@ -4,7 +4,7 @@ import '../widgets/recognition_result_widget.dart';
 import '../widgets/control_panel_widget.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
