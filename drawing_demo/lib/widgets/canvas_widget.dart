@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'dart:ui' as ui;
+import '../models/multi_stroke_parser.dart';
 import '../models/dollar_q.dart';
+import '../models/multi_stroke_write.dart';
 
 class CanvasWidget extends StatefulWidget {
   final Function(String) onRecognitionComplete;
@@ -8,12 +11,12 @@ class CanvasWidget extends StatefulWidget {
   const CanvasWidget({super.key, required this.onRecognitionComplete});
 
   @override
-  _CanvasWidgetState createState() => _CanvasWidgetState();
+  CanvasWidgetState createState() => CanvasWidgetState();
 }
 
-class _CanvasWidgetState extends State<CanvasWidget> {
-  final List<List<Offset>> _strokes = [];
-  List<Offset> _currentStroke = [];
+class CanvasWidgetState extends State<CanvasWidget> {
+  final List<List<Point>> _strokes = [];
+  List<Point> _currentStroke = [];
   late DollarQ _dollarQ;
 
   @override
@@ -23,39 +26,50 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     _loadTemplates();
   }
 
-  void _loadTemplates() {
-    // TODO: Load your gesture templates here
-    // For now, we'll just add a simple template as an example
-    var template = MultiStrokePath([
-      [Point(0, 0), Point(1, 1), Point(2, 2)],
-    ], "line");
-    _dollarQ.templates = [template];
+  Future<void> _loadTemplates() async {
+    try {
+      var templates = await MultiStrokeParser.loadStrokePatternsLocal();
+      _dollarQ.templates = templates;
+      print("Loaded ${templates.length} templates");
+    } catch (e) {
+      print("Error loading templates: $e");
+    }
   }
 
-  void _onPanStart(DragStartDetails details) {
+  void _handlePointerDown(PointerDownEvent event) {
     setState(() {
-      _currentStroke = [details.localPosition];
+      _currentStroke = [_createPoint(event)];
       _strokes.add(_currentStroke);
     });
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
+  void _handlePointerMove(PointerMoveEvent event) {
     setState(() {
-      _currentStroke.add(details.localPosition);
+      _currentStroke.add(_createPoint(event));
       _strokes[_strokes.length - 1] = List.from(_currentStroke);
     });
   }
 
-  void _onPanEnd(DragEndDetails details) {
+  void _handlePointerUp(PointerUpEvent event) {
     _recognizeGesture();
   }
 
-  void _recognizeGesture() {
-    var points = _strokes.map((stroke) =>
-      stroke.map((offset) => Point(offset.dx, offset.dy)).toList()
-    ).toList();
+  Point _createPoint(PointerEvent event) {
+    int? pressure;
+    if (event.kind == PointerDeviceKind.stylus) {
+      pressure = (event.pressure * 255).round();
+    }
+    return Point(
+      event.localPosition.dx,
+      event.localPosition.dy,
+      _strokes.length - 1, // strokeId
+      event.timeStamp.inMilliseconds,
+      pressure
+    );
+  }
 
-    var candidate = MultiStrokePath(points);
+  void _recognizeGesture() {
+    var candidate = MultiStrokePath(_strokes);
     var result = _dollarQ.recognize(candidate);
 
     if (result.isNotEmpty) {
@@ -68,6 +82,21 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     }
   }
 
+  Future<void> _saveGesture(String name) async {
+    var multistroke = MultiStrokePath(_strokes, name);
+    var writer = MultiStrokeWrite();
+    writer.startGesture(name: name, subject: "01", multistroke: multistroke);
+
+    try {
+      await writer.saveToDirectory(name, name);
+      print("Gesture saved successfully");
+      // Reload templates after saving
+      await _loadTemplates();
+    } catch (e) {
+      print("Error saving gesture: $e");
+    }
+  }
+
   void _clear() {
     setState(() {
       _strokes.clear();
@@ -75,12 +104,25 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     widget.onRecognitionComplete('');
   }
 
+  // Public methods to be accessed from parent
+  void clearCanvas() {
+    _clear();
+  }
+
+  void recognizeGesture() {
+    _recognizeGesture();
+  }
+
+  Future<void> saveGesture(String name) async {
+    await _saveGesture(name);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onPanStart: _onPanStart,
-      onPanUpdate: _onPanUpdate,
-      onPanEnd: _onPanEnd,
+    return Listener(
+      onPointerDown: _handlePointerDown,
+      onPointerMove: _handlePointerMove,
+      onPointerUp: _handlePointerUp,
       child: CustomPaint(
         painter: _CanvasPainter(_strokes),
         child: Container(
@@ -94,7 +136,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
 }
 
 class _CanvasPainter extends CustomPainter {
-  final List<List<Offset>> strokes;
+  final List<List<Point>> strokes;
 
   _CanvasPainter(this.strokes);
 
@@ -107,9 +149,14 @@ class _CanvasPainter extends CustomPainter {
 
     for (final stroke in strokes) {
       if (stroke.length > 1) {
-        canvas.drawPoints(ui.PointMode.polygon, stroke, paint);
+        var path = Path();
+        path.moveTo(stroke[0].x, stroke[0].y);
+        for (var i = 1; i < stroke.length; i++) {
+          path.lineTo(stroke[i].x, stroke[i].y);
+        }
+        canvas.drawPath(path, paint);
       } else if (stroke.length == 1) {
-        canvas.drawPoints(ui.PointMode.points, stroke, paint);
+        canvas.drawPoints(ui.PointMode.points, [Offset(stroke[0].x, stroke[0].y)], paint);
       }
     }
   }

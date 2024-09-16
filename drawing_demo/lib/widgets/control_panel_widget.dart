@@ -1,7 +1,18 @@
+// control_panel_widget.dart
+
 import 'package:flutter/material.dart';
 
 class ControlPanelWidget extends StatelessWidget {
-  const ControlPanelWidget({super.key});
+  final VoidCallback onClear;
+  final VoidCallback onRecognize;
+  final VoidCallback onSave;
+
+  const ControlPanelWidget({
+    super.key,
+    required this.onClear,
+    required this.onRecognize,
+    required this.onSave,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -11,21 +22,15 @@ class ControlPanelWidget extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           ElevatedButton(
-            onPressed: () {
-              // Implement clear functionality
-            },
+            onPressed: onClear,
             child: const Text('Clear'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Implement recognize functionality
-            },
+            onPressed: onRecognize,
             child: const Text('Recognize'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Implement save functionality
-            },
+            onPressed: onSave,
             child: const Text('Save'),
           ),
         ],

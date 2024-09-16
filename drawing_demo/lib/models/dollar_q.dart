@@ -4,8 +4,10 @@ class Point {
   double x;
   double y;
   int? strokeId;
+  int? time;
+  int? pressure;
 
-  Point(this.x, this.y, [this.strokeId]);
+  Point(this.x, this.y, [this.strokeId, this.time, this.pressure]);
 
   double distanceTo(Point other) {
     return sqrt(pow(x - other.x, 2) + pow(y - other.y, 2));
@@ -15,10 +17,22 @@ class Point {
 class MultiStrokePath {
   List<List<Point>> strokes;
   String? name;
+  List<List<int>>? lut; // Moved from extension
 
-  MultiStrokePath(this.strokes, [this.name]);
+  MultiStrokePath(this.strokes, [this.name, this.lut]);
 
   List<Point> get asPoints => strokes.expand((stroke) => stroke).toList();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MultiStrokePath &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          strokes == other.strokes;
+
+  @override
+  int get hashCode => name.hashCode ^ strokes.hashCode;
 }
 
 class DollarQ {
@@ -70,7 +84,8 @@ class DollarQ {
     return {};
   }
 
-  static List<Point> normalize(List<Point> points, int cloudSize, int lookUpTableSize) {
+  static List<Point> normalize(
+      List<Point> points, int cloudSize, int lookUpTableSize) {
     var resampled = resample(points, cloudSize);
     var translated = translateToOrigin(resampled);
     var scaled = scale(translated, lookUpTableSize);
@@ -80,19 +95,22 @@ class DollarQ {
   static List<Point> resample(List<Point> points, int n) {
     var interval = pathLength(points) / (n - 1);
     var D = 0.0;
-    var newPoints = [points[0]];
+    var newPoints = <Point>[points[0]];
+    var i = 1;
 
-    for (var i = 1; i < points.length; i++) {
+    while (i < points.length) {
       var d = points[i].distanceTo(points[i - 1]);
       if (D + d >= interval) {
-        var qx = points[i - 1].x + ((interval - D) / d) * (points[i].x - points[i - 1].x);
-        var qy = points[i - 1].y + ((interval - D) / d) * (points[i].y - points[i - 1].y);
-        var q = Point(qx, qy, points[i].strokeId);
+        var t = (interval - D) / d;
+        var qx = points[i - 1].x + t * (points[i].x - points[i - 1].x);
+        var qy = points[i - 1].y + t * (points[i].y - points[i - 1].y);
+        var q = Point(
+            qx, qy, points[i].strokeId, points[i].time, points[i].pressure);
         newPoints.add(q);
-        points.insert(i, q);
-        D = 0;
+        D = 0.0;
       } else {
         D += d;
+        i++;
       }
     }
 
@@ -105,7 +123,9 @@ class DollarQ {
 
   static List<Point> translateToOrigin(List<Point> points) {
     var centroid = calculateCentroid(points);
-    return points.map((p) => Point(p.x - centroid.x, p.y - centroid.y, p.strokeId)).toList();
+    return points
+        .map((p) => Point(p.x - centroid.x, p.y - centroid.y, p.strokeId))
+        .toList();
   }
 
   static Point calculateCentroid(List<Point> points) {
@@ -124,11 +144,10 @@ class DollarQ {
     var maxY = points.map((p) => p.y).reduce(max);
 
     var size = max(maxX - minX, maxY - minY);
-    return points.map((p) => Point(
-      (p.x - minX) * (m - 1) / size,
-      (p.y - minY) * (m - 1) / size,
-      p.strokeId
-    )).toList();
+    return points
+        .map((p) => Point((p.x - minX) * (m - 1) / size,
+            (p.y - minY) * (m - 1) / size, p.strokeId))
+        .toList();
   }
 
   static List<List<int>> computeLookUpTable(List<Point> points, int m, int n) {
@@ -151,27 +170,33 @@ class DollarQ {
     return lut;
   }
 
-  static double cloudMatch(MultiStrokePath points, MultiStrokePath template, int n, double minimum) {
+  static double cloudMatch(
+      MultiStrokePath points, MultiStrokePath template, int n, double minimum) {
     var step = sqrt(n).round();
-    var lowerBound1 = computeLowerBound(points.asPoints, template.asPoints, step, n, template.lut!);
-    var lowerBound2 = computeLowerBound(template.asPoints, points.asPoints, step, n, points.lut!);
+    var lowerBound1 = computeLowerBound(
+        points.asPoints, template.asPoints, step, n, template.lut!);
+    var lowerBound2 = computeLowerBound(
+        template.asPoints, points.asPoints, step, n, points.lut!);
     var minSoFar = minimum;
 
     for (var i = 0; i < n - 1; i += step) {
       var index = i ~/ step;
       if (lowerBound1[index] < minSoFar) {
-        var distance = cloudDistance(points.asPoints, template.asPoints, n, i, minSoFar);
+        var distance =
+            cloudDistance(points.asPoints, template.asPoints, n, i, minSoFar);
         minSoFar = min(minSoFar, distance);
       }
       if (lowerBound2[index] < minSoFar) {
-        var distance = cloudDistance(template.asPoints, points.asPoints, n, i, minSoFar);
+        var distance =
+            cloudDistance(template.asPoints, points.asPoints, n, i, minSoFar);
         minSoFar = min(minSoFar, distance);
       }
     }
     return minSoFar;
   }
 
-  static double cloudDistance(List<Point> points, List<Point> template, int n, int start, double minSoFar) {
+  static double cloudDistance(List<Point> points, List<Point> template, int n,
+      int start, double minSoFar) {
     var i = start;
     var unmatched = List.generate(n, (index) => index);
     var sum = 0.0;
@@ -195,7 +220,8 @@ class DollarQ {
     return sum;
   }
 
-  static List<double> computeLowerBound(List<Point> points, List<Point> template, int step, int n, List<List<int>> lut) {
+  static List<double> computeLowerBound(List<Point> points,
+      List<Point> template, int step, int n, List<List<int>> lut) {
     var lowerBound = [0.0];
     var summedAreaTable = <double>[];
 
@@ -211,7 +237,9 @@ class DollarQ {
     }
 
     for (var i = step; i < n - 1; i += step) {
-      var nextValue = lowerBound[0] + (i * summedAreaTable[n - 1]) - (n * summedAreaTable[i - 1]);
+      var nextValue = lowerBound[0] +
+          (i * summedAreaTable[n - 1]) -
+          (n * summedAreaTable[i - 1]);
       lowerBound.add(nextValue);
     }
     return lowerBound;
@@ -224,11 +252,4 @@ class DollarQ {
     }
     return length;
   }
-}
-
-extension MultiStrokePathExtension on MultiStrokePath {
-  static final Map<MultiStrokePath, List<List<int>>?> _lutStorage = {};
-
-  List<List<int>>? get lut => _lutStorage[this];
-  set lut(List<List<int>>? value) => _lutStorage[this] = value;
 }
