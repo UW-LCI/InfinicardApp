@@ -4,12 +4,14 @@ import '../providers/stroke_provider.dart';
 import '../models/stroke.dart';
 
 class DrawingCanvas extends StatefulWidget {
+  const DrawingCanvas({super.key});
+
   @override
   _DrawingCanvasState createState() => _DrawingCanvasState();
 }
 
 class _DrawingCanvasState extends State<DrawingCanvas> {
-  List<Offset> _currentPoints = []; // Maybe not needed
+  final List<Offset> _currentPoints = []; // Maybe not needed
 
   @override
   Widget build(BuildContext context) {
