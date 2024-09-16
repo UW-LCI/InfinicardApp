@@ -8,15 +8,15 @@ import '../models/multi_stroke_write.dart';
 class CanvasWidget extends StatefulWidget {
   final Function(String) onRecognitionComplete;
 
-  const CanvasWidget({super.key, required this.onRecognitionComplete});
+  const CanvasWidget({Key? key, required this.onRecognitionComplete}) : super(key: key);
 
   @override
   CanvasWidgetState createState() => CanvasWidgetState();
 }
 
 class CanvasWidgetState extends State<CanvasWidget> {
-  final List<List<Point>> _strokes = [];
-  List<Point> _currentStroke = [];
+  List<List<GesturePoint>> _strokes = [];
+  List<GesturePoint> _currentStroke = [];
   late DollarQ _dollarQ;
 
   @override
@@ -54,36 +54,38 @@ class CanvasWidgetState extends State<CanvasWidget> {
     _recognizeGesture();
   }
 
-  Point _createPoint(PointerEvent event) {
-    int? pressure;
+  GesturePoint _createPoint(PointerEvent event) {
+    double? pressure;
     if (event.kind == PointerDeviceKind.stylus) {
-      pressure = (event.pressure * 255).round();
+      pressure = (event.pressure * 255).round().toDouble();
     }
-    return Point(
+    return GesturePoint(
       event.localPosition.dx,
       event.localPosition.dy,
       _strokes.length - 1, // strokeId
-      event.timeStamp.inMilliseconds,
+      event.timeStamp.inMilliseconds.toDouble(),
       pressure
     );
   }
 
-  void _recognizeGesture() {
-    var candidate = MultiStrokePath(_strokes);
-    var result = _dollarQ.recognize(candidate);
+  void _recognizeGesture() async {
+      var flattenedStrokes = _strokes.expand((stroke) => stroke).toList();
+      var candidate = MultiStrokePath(flattenedStrokes);
+      var result = await _dollarQ.recognize(candidate);
 
-    if (result.isNotEmpty) {
-      var score = result['score'] as double;
-      var templateIndex = result['templateIndex'] as int;
-      var templateName = _dollarQ.templates[templateIndex].name;
-      widget.onRecognitionComplete('Recognized: $templateName (Score: ${score.toStringAsFixed(2)})');
-    } else {
-      widget.onRecognitionComplete('No match found');
+      if (result.isNotEmpty) {
+        var score = result['score'] as double;
+        var templateIndex = result['templateIndex'] as int;
+        var templateName = _dollarQ.templates[templateIndex].name;
+        widget.onRecognitionComplete('Recognized: $templateName (Score: ${score.toStringAsFixed(2)})');
+      } else {
+        widget.onRecognitionComplete('No match found');
+      }
     }
-  }
 
   Future<void> _saveGesture(String name) async {
-    var multistroke = MultiStrokePath(_strokes, name);
+    var flattenedStrokes = _strokes.expand((stroke) => stroke).toList();
+    var multistroke = MultiStrokePath(flattenedStrokes, name);
     var writer = MultiStrokeWrite();
     writer.startGesture(name: name, subject: "01", multistroke: multistroke);
 
@@ -136,7 +138,7 @@ class CanvasWidgetState extends State<CanvasWidget> {
 }
 
 class _CanvasPainter extends CustomPainter {
-  final List<List<Point>> strokes;
+  final List<List<GesturePoint>> strokes;
 
   _CanvasPainter(this.strokes);
 

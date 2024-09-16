@@ -61,33 +61,34 @@ class MultiStrokeParser {
       String? gestureName = gestureElement.getAttribute('Name');
       gestureName = gestureName?.split('~').first;
 
-      List<List<Point>> strokes = [];
+      List<List<GesturePoint>> strokes = [];
       var strokeElements = gestureElement.findElements('Stroke');
 
       for (var strokeIndex = 0;
           strokeIndex < strokeElements.length;
           strokeIndex++) {
         var strokeElement = strokeElements.elementAt(strokeIndex);
-        List<Point> currentStroke = [];
+        List<GesturePoint> currentStroke = [];
         var pointElements = strokeElement.findElements('Point');
 
         for (var pointElement in pointElements) {
           double x = double.parse(pointElement.getAttribute('X') ?? '0');
           double y = double.parse(pointElement.getAttribute('Y') ?? '0');
-          int? time = int.tryParse(pointElement.getAttribute('T') ?? '');
-          int? pressure =
-              int.tryParse(pointElement.getAttribute('Pressure') ?? '');
+          double? time = double.tryParse(pointElement.getAttribute('T') ?? '');
+          double? pressure =
+              double.tryParse(pointElement.getAttribute('Pressure') ?? '');
 
-          currentStroke.add(Point(x, y, strokeIndex, time, pressure));
+          currentStroke.add(GesturePoint(x, y, strokeIndex, time, pressure));
         }
 
         strokes.add(currentStroke);
       }
 
-      return MultiStrokePath(strokes, gestureName);
+      return MultiStrokePath(strokes.expand((element) => element).toList(), gestureName ?? 'Unknown');
     } catch (e) {
       print('Error parsing XML: $e');
       throw const FormatException('Error parsing XML');
     }
   }
+
 }
