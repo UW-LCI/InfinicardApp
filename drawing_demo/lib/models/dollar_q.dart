@@ -22,8 +22,8 @@ class GesturePoint {
 
 class MultiStrokePath {
   List<GesturePoint> strokes;
-  String name;
-  List<List<int>>? lut;
+  String name; // maybe optional
+  List<List<int>>? lut; // Look-up table
 
   MultiStrokePath(this.strokes, [this.name = '']);
 }
@@ -152,12 +152,21 @@ class DollarQ {
   }
 
   List<GesturePoint> resample(List<GesturePoint> points, int n) {
-    var interval = pathLength(points) / (n - 1);
+    // Validate 'n' to prevent excessive memory allocation
+    if (n <= 1 || n > 1000) {
+      // Adjust the upper limit as needed
+      throw ArgumentError('Parameter n must be between 2 and 1000');
+    }
+    print('Resample called with n=$n and points.length=${points.length}');
+    var pathLen = pathLength(points);
+    print('Total path length: $pathLen');
+    var interval = pathLen / (n - 1);
     var D = 0.0;
     var newPoints = <GesturePoint>[points[0]];
     var i = 1;
+    const int maxPoints = 1000; // Define a maximum cap for newPoints
 
-    while (i < points.length) {
+    while (i < points.length && newPoints.length < maxPoints) {
       var d = points[i].distanceTo(points[i - 1]);
       if (D + d >= interval) {
         var t = (interval - D) / d;
@@ -173,7 +182,8 @@ class DollarQ {
       }
     }
 
-    if (newPoints.length == n - 1) {
+    // Ensure the last point is added if necessary
+    if (newPoints.length == n - 1 && i < points.length) {
       newPoints.add(points.last);
     }
 

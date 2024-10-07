@@ -8,14 +8,14 @@ import '../models/multi_stroke_write.dart';
 class CanvasWidget extends StatefulWidget {
   final Function(String) onRecognitionComplete;
 
-  const CanvasWidget({Key? key, required this.onRecognitionComplete}) : super(key: key);
+  const CanvasWidget({super.key, required this.onRecognitionComplete});
 
   @override
   CanvasWidgetState createState() => CanvasWidgetState();
 }
 
 class CanvasWidgetState extends State<CanvasWidget> {
-  List<List<GesturePoint>> _strokes = [];
+  final List<List<GesturePoint>> _strokes = [];
   List<GesturePoint> _currentStroke = [];
   late DollarQ _dollarQ;
 
@@ -68,6 +68,7 @@ class CanvasWidgetState extends State<CanvasWidget> {
     );
   }
 
+  // This is for DOLLARQ recognition, we can ignore this for now
   void _recognizeGesture() async {
       var flattenedStrokes = _strokes.expand((stroke) => stroke).toList();
       var candidate = MultiStrokePath(flattenedStrokes);
@@ -98,6 +99,7 @@ class CanvasWidgetState extends State<CanvasWidget> {
       print("Error saving gesture: $e");
     }
   }
+  // End of DOLLAR Q recognition
 
   void _clear() {
     setState(() {
@@ -119,6 +121,7 @@ class CanvasWidgetState extends State<CanvasWidget> {
     await _saveGesture(name);
   }
 
+  // Build the canvas widget (VIEW)
   @override
   Widget build(BuildContext context) {
     return Listener(
@@ -130,7 +133,7 @@ class CanvasWidgetState extends State<CanvasWidget> {
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          color: Colors.transparent,
+          color: const Color.fromARGB(0, 12, 11, 11),
         ),
       ),
     );
@@ -142,6 +145,8 @@ class _CanvasPainter extends CustomPainter {
 
   _CanvasPainter(this.strokes);
 
+
+  // Possible bug here, drawing path cannot properly handle angles.
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
