@@ -68,7 +68,7 @@ class CanvasWidgetState extends State<CanvasWidget> {
     );
   }
 
-  // This is for DOLLARQ recognition, we can ignore this for now
+  // // This is for DOLLARQ recognition, we can ignore this for now
   void _recognizeGesture() async {
       var flattenedStrokes = _strokes.expand((stroke) => stroke).toList();
       var candidate = MultiStrokePath(flattenedStrokes);
@@ -99,7 +99,7 @@ class CanvasWidgetState extends State<CanvasWidget> {
       print("Error saving gesture: $e");
     }
   }
-  // End of DOLLAR Q recognition
+  // // End of DOLLAR Q recognition
 
   void _clear() {
     setState(() {
@@ -153,7 +153,7 @@ class _CanvasPainter extends CustomPainter {
       ..color = Colors.black
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 5.0;
-
+    paint.style = PaintingStyle.stroke;
     for (final stroke in strokes) {
       if (stroke.length > 1) {
         var path = Path();
